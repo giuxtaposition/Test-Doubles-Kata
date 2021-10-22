@@ -1,4 +1,4 @@
-import { instance, mock } from 'ts-mockito'
+import { instance, mock, when } from 'ts-mockito'
 import Film from '../../../src/domain/film'
 import FilmService from '../../../src/domain/film/FilmService'
 import Rate from '../../../src/domain/rate'
@@ -31,11 +31,13 @@ describe('Rate Service Test using Stubs', () => {
         const rate: Rate = Rate.of('aTitle', 4, UserIdDummy.randomUserId())
 
         // Setup
+        when(repository.findById(rate.id)).thenReturn(rate)
 
         // Exercise
         const ratingFromRepo: Rate | undefined = rateService.findById(rate.id)
 
         // Verify State
+        expect(ratingFromRepo).toBe(rate)
     })
 
     test('Should return ratings made by a user', () => {
@@ -51,11 +53,14 @@ describe('Rate Service Test using Stubs', () => {
         allRates.push(rateTwoByUser)
 
         // Setup
+        when(repository.all()).thenReturn([rateOneByUser, rateTwoByUser])
 
         // Exercise
         const ratedByUser: Rate[] = rateService.findByUser(userId)
 
         // Verify State
+        expect(ratedByUser).toContain(rateOneByUser)
+        expect(ratedByUser).toContain(rateTwoByUser)
     })
 
     test('Should return ratings made by User for films released in selected year or more recent', () => {
@@ -85,11 +90,21 @@ describe('Rate Service Test using Stubs', () => {
         allRates.push(rateOfTheLionKingByUser)
 
         // Setup
+        when(repository.all()).thenReturn(allRates)
+        when(filmService.findById(frozenTitle)).thenReturn(
+            frozenMovieAsNewerFilm
+        )
+        when(filmService.findById(theLionKingTitle)).thenReturn(
+            theLionKingMovieAsOldFilm
+        )
 
         // Exercise
         const ratesByUserOfFilmsMadeAtYear2000OrMoreRecent: Rate[] =
             rateService.ratedByUserAtYearOrMoreRecent(userId, productionYear)
 
         // Verify State
+        expect(ratesByUserOfFilmsMadeAtYear2000OrMoreRecent).toStrictEqual([
+            rateOfFrozenByUser,
+        ])
     })
 })
