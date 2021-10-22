@@ -1,12 +1,9 @@
-import { instance, mock } from 'ts-mockito'
-import Film from '../../../src/domain/film'
+import { instance, mock, when, verify, anyString } from 'ts-mockito'
 import FilmService from '../../../src/domain/film/FilmService'
 import Rate from '../../../src/domain/rate'
 import LikedNotifier from '../../../src/domain/rate/LikedNotifier'
 import RateRepository from '../../../src/domain/rate/RateRepository'
 import RateService from '../../../src/domain/rate/RateService'
-import UserId from '../../../src/domain/user/UserId'
-import FilmBuilder from '../film/FilmDummy'
 import UserIdDummy from '../user/UserIdDummy'
 import RateBuilder from './RateDummy'
 
@@ -31,9 +28,11 @@ describe('Rate Service Test using Spies', () => {
         const rate: Rate = Rate.of('aTitle', 4, UserIdDummy.randomUserId())
 
         // Exercise
+        when(repository.ratesForFilm(rate.title)).thenReturn([rate])
         rateService.save(rate)
 
         // Verify expectations
+        verify(repository.save(rate.id, rate)).once()
     })
 
     test('When a film is rate more than 10 times by different users it should send a notification', () => {
@@ -44,10 +43,14 @@ describe('Rate Service Test using Spies', () => {
         )
 
         // Setup
+        when(repository.ratesForFilm(anyString() as string)).thenReturn(
+            ratesForFilm
+        )
 
         // Exercise
         rateService.save(RateBuilder.randomRate().withTitle(title).build())
 
         // Verify it has been called
+        verify(likedNotifier.notifyForFilm(title)).once()
     })
 })
