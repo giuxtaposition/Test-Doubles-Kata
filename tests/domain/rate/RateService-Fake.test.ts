@@ -1,4 +1,4 @@
-import { instance, mock } from 'ts-mockito'
+import { instance, mock, when, verify } from 'ts-mockito'
 import Film from '../../../src/domain/film'
 import FilmService from '../../../src/domain/film/FilmService'
 import Rate from '../../../src/domain/rate'
@@ -35,6 +35,7 @@ describe('Rate Service Test using Fakes', () => {
         rateService.save(rate)
 
         // Verify State
+        expect(repository.findById(rate.id)).toBe(rate)
     })
 
     test('Should receive from repository', () => {
@@ -45,6 +46,7 @@ describe('Rate Service Test using Fakes', () => {
         const ratingFromRepo: Rate | undefined = rateService.findById(rate.id)
 
         // Verify State
+        expect(ratingFromRepo).toBe(rate)
     })
 
     test('Should return ratings made by a user', () => {
@@ -61,11 +63,13 @@ describe('Rate Service Test using Fakes', () => {
         allRates.push(rateTwoByUser)
 
         // Setup state
+        saveRatesIntoService(allRates)
 
         // Exercise
         const ratedByUser: Rate[] = rateService.findByUser(userId)
 
         // Verify State
+        expect(rateService.findByUser(userId)).toStrictEqual(ratedByUser)
     })
 
     test('Should return ratings made by User for films released in selected year or more recent', () => {
@@ -95,12 +99,22 @@ describe('Rate Service Test using Fakes', () => {
         allRates.push(rateOfTheLionKingByUser)
 
         // Setup expectations
+        saveRatesIntoService(allRates)
+        when(filmService.findById(frozenTitle)).thenReturn(
+            frozenMovieAsNewerFilm
+        )
+        when(filmService.findById(theLionKingTitle)).thenReturn(
+            theLionKingMovieAsOldFilm
+        )
 
         // Exercise
         const ratesByUserOfFilmsMadeAtYear2000OrMoreRecent: Rate[] =
             rateService.ratedByUserAtYearOrMoreRecent(userId, productionYear)
 
         // Verify State
+        expect(ratesByUserOfFilmsMadeAtYear2000OrMoreRecent).toStrictEqual([
+            rateOfFrozenByUser,
+        ])
     })
 
     test('When a film is rate more than 10 times by different users it should send a notification', () => {
@@ -114,6 +128,7 @@ describe('Rate Service Test using Fakes', () => {
         ratesForFilm.forEach(rateService.save.bind(rateService))
 
         // Verify Spy
+        verify(likedNotifier.notifyForFilm(title)).once()
     })
 
     const saveRatesIntoService = (rates: Rate[]) => {
