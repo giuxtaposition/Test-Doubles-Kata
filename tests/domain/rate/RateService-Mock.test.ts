@@ -1,4 +1,4 @@
-import { instance, mock } from 'ts-mockito'
+import { instance, mock, when, verify, anyString } from 'ts-mockito'
 import Film from '../../../src/domain/film'
 import FilmService from '../../../src/domain/film/FilmService'
 import Rate from '../../../src/domain/rate'
@@ -31,11 +31,14 @@ describe('Rate Service Test using Mocks', () => {
         const rate: Rate = Rate.of('aTitle', 4, UserIdDummy.randomUserId())
 
         // Setup Expectations
+        when(repository.findById(rate.id)).thenReturn(rate)
 
         // Exercise
         const ratingFromRepo: Rate | undefined = rateService.findById(rate.id)
 
         // Verify State
+        expect(ratingFromRepo).toBe(rate)
+        verify(repository.findById(rate.id)).called()
     })
 
     test('Should return ratings made by a user', () => {
@@ -48,11 +51,26 @@ describe('Rate Service Test using Mocks', () => {
             .build()
 
         // Setup Expectations
+        when(repository.ratesForFilm(rateOneByUser.title)).thenReturn([
+            rateOneByUser,
+        ])
+        when(repository.ratesForFilm(rateTwoByUser.title)).thenReturn([
+            rateTwoByUser,
+        ])
+
+        when(repository.all()).thenReturn([rateOneByUser, rateTwoByUser])
 
         // Exercise
+        rateService.save(rateOneByUser)
+        rateService.save(rateTwoByUser)
         const ratedByUser: Rate[] = rateService.findByUser(userId)
 
         // Verify State
+        expect(ratedByUser).toContain(rateOneByUser)
+        expect(ratedByUser).toContain(rateTwoByUser)
+        verify(repository.ratesForFilm(rateOneByUser.title)).once()
+        verify(repository.ratesForFilm(rateTwoByUser.title)).once()
+        verify(repository.all()).once()
     })
 
     test('Should return ratings made by User for films released in selected year or more recent', () => {
@@ -82,12 +100,24 @@ describe('Rate Service Test using Mocks', () => {
         allRates.push(rateOfTheLionKingByUser)
 
         // Setup expectations
+        when(repository.all()).thenReturn(allRates)
+        when(filmService.findById(frozenTitle)).thenReturn(
+            frozenMovieAsNewerFilm
+        )
+        when(filmService.findById(theLionKingTitle)).thenReturn(
+            theLionKingMovieAsOldFilm
+        )
 
         // Exercise
         const ratesByUserOfFilmsMadeAtYear2000OrMoreRecent: Rate[] =
             rateService.ratedByUserAtYearOrMoreRecent(userId, productionYear)
 
         // Verify State
+        expect(ratesByUserOfFilmsMadeAtYear2000OrMoreRecent).toStrictEqual([
+            rateOfFrozenByUser,
+        ])
+        verify(repository.all()).once()
+        verify(filmService.findById(anyString() as string)).times(2)
     })
 
     test('When a film is rate more than 10 times by different users it should send a notification', () => {
@@ -99,10 +129,15 @@ describe('Rate Service Test using Mocks', () => {
         )
 
         // Setup Expectations
+        when(repository.ratesForFilm(anyString() as string)).thenReturn(
+            ratesForFilm
+        )
 
         // Exercise
         rateService.save(rate)
 
         // Verify expectations
+        verify(repository.ratesForFilm(anyString() as string)).once()
+        verify(likedNotifier.notifyForFilm(title)).once()
     })
 })
